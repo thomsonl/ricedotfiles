@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Effects
 import Quickshell
+import Quickshell.Io
 import Quickshell.Services.Mpris
 
 Item {
@@ -62,6 +63,25 @@ Item {
         return root.active ? root.player.position : 0
     }
 
+    // Tiny real-time spectrum shown in the bar itself, driven by cava reading
+    // the default sink's monitor (see cava.conf: 4 bars, raw ascii, 0-20 range).
+    property var barValues: [0, 0, 0, 0]
+
+    Process {
+        id: cavaProc
+        running: root.active && root.player.isPlaying
+        command: ["cava", "-p", "/home/thomson/.config/quickshell/cava.conf"]
+        stdout: SplitParser {
+            onRead: (line) => {
+                const parts = line.split(";").filter(s => s.length > 0).map(Number)
+                if (parts.length === root.barValues.length) root.barValues = parts
+            }
+        }
+        onRunningChanged: {
+            if (!running) root.barValues = [0, 0, 0, 0]
+        }
+    }
+
     Rectangle {
         anchors.fill: parent
         radius: 6
@@ -73,76 +93,89 @@ Item {
         anchors.centerIn: parent
         spacing: 6
 
-        Text {
-            anchors.verticalCenter: parent.verticalCenter
-            text: "e"
-            color: prevArea.containsMouse ? Theme.text : Theme.textDim
-            font.family: Theme.iconFont
-            font.pixelSize: 13
-            visible: root.active && root.player.canGoPrevious
-
-            MouseArea {
-                id: prevArea
-                anchors.fill: parent
-                anchors.margins: -4
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.player.previous()
-            }
-        }
-
-        Text {
-            anchors.verticalCenter: parent.verticalCenter
-            text: root.active && root.player.isPlaying ? "" : ""
-            color: Theme.text
-            font.family: Theme.iconFont
-            font.pixelSize: 13
-            visible: root.active && root.player.canTogglePlaying
-
-            MouseArea {
-                id: playArea
-                anchors.fill: parent
-                anchors.margins: -4
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.player.togglePlaying()
-            }
-        }
-
-        Text {
-            anchors.verticalCenter: parent.verticalCenter
-            text: ""
-            color: nextArea.containsMouse ? Theme.text : Theme.textDim
-            font.family: Theme.iconFont
-            font.pixelSize: 13
-            visible: root.active && root.player.canGoNext
-
-            MouseArea {
-                id: nextArea
-                anchors.fill: parent
-                anchors.margins: -4
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.player.next()
-            }
-        }
-
-        Text {
-            id: trackText
+        Row {
+            id: visualizer
             anchors.verticalCenter: parent.verticalCenter
             visible: root.active
-            text: {
-                if (!root.active) return ""
-                const artist = root.player.trackArtist
-                const title = root.player.trackTitle
-                return artist ? artist + " – " + title : title
+            spacing: 2
+
+            Repeater {
+                model: root.barValues
+
+                delegate: Item {
+                    required property var modelData
+
+                    width: 3
+                    height: 14
+
+                    Rectangle {
+                        width: parent.width
+                        radius: 1
+                        color: Theme.accent
+                        anchors.bottom: parent.bottom
+                        height: Math.max(2, modelData / 20 * parent.height)
+
+                        Behavior on height {
+                            NumberAnimation { duration: 60 }
+                        }
+                    }
+                }
             }
-            color: Theme.text
-            font.family: Theme.uiFont
-            font.pixelSize: 12
-            elide: Text.ElideRight
-            maximumLineCount: 1
-            width: Math.min(implicitWidth, 220)
+        }
+
+        Item {
+            id: trackTextContainer
+            anchors.verticalCenter: parent.verticalCenter
+            visible: root.active
+            clip: true
+
+            readonly property int maxTextWidth: 220
+            readonly property bool overflowing: trackText.implicitWidth > maxTextWidth
+            readonly property real scrollDistance: trackText.implicitWidth - maxTextWidth
+
+            width: Math.min(trackText.implicitWidth, maxTextWidth)
+            height: trackText.implicitHeight
+
+            Text {
+                id: trackText
+                text: {
+                    if (!root.active) return ""
+                    const artist = root.player.trackArtist
+                    const title = root.player.trackTitle
+                    return artist ? artist + " – " + title : title
+                }
+                color: Theme.text
+                font.family: Theme.uiFont
+                font.pixelSize: 12
+                maximumLineCount: 1
+                elide: Text.ElideRight
+                width: (trackArea.containsMouse && trackTextContainer.overflowing) ? implicitWidth : trackTextContainer.width
+
+                SequentialAnimation {
+                    running: trackArea.containsMouse && trackTextContainer.overflowing
+                    loops: Animation.Infinite
+                    onRunningChanged: if (!running) trackText.x = 0
+
+                    PauseAnimation { duration: 800 }
+                    NumberAnimation {
+                        target: trackText
+                        property: "x"
+                        from: 0
+                        to: -trackTextContainer.scrollDistance
+                        duration: Math.max(1200, trackTextContainer.scrollDistance * 30)
+                        easing.type: Easing.InOutQuad
+                    }
+                    PauseAnimation { duration: 800 }
+                    NumberAnimation {
+                        target: trackText
+                        property: "x"
+                        from: -trackTextContainer.scrollDistance
+                        to: 0
+                        duration: Math.max(1200, trackTextContainer.scrollDistance * 30)
+                        easing.type: Easing.InOutQuad
+                    }
+                }
+            }
 
             MouseArea {
                 id: trackArea
@@ -190,6 +223,7 @@ Item {
                         anchors.fill: parent
                         radius: 8
                         visible: false
+                        layer.enabled: true
                     }
 
                     MultiEffect {
@@ -292,7 +326,7 @@ Item {
                 spacing: 28
 
                 Text {
-                    text: ""
+                    text: "󰒮"
                     color: (root.active && root.player.canGoPrevious) ? (popupPrevArea.containsMouse ? Theme.text : Theme.textDim) : Theme.textFaint
                     font.family: Theme.iconFont
                     font.pixelSize: 16
@@ -308,26 +342,10 @@ Item {
                 }
 
                 Text {
-                    text: ""
-                    color: (root.active && root.player.canControl) ? (popupStopArea.containsMouse ? Theme.text : Theme.textDim) : Theme.textFaint
-                    font.family: Theme.iconFont
-                    font.pixelSize: 16
-                    MouseArea {
-                        id: popupStopArea
-                        anchors.fill: parent
-                        anchors.margins: -6
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        enabled: root.active && root.player.canControl
-                        onClicked: root.player.stop()
-                    }
-                }
-
-                Text {
-                    text: root.active && root.player.isPlaying ? "" : ""
+                    text: root.active && root.player.isPlaying ? "󰏤" : "󰐊"
                     color: Theme.text
                     font.family: Theme.iconFont
-                    font.pixelSize: 20
+                    font.pixelSize: 16
                     MouseArea {
                         id: popupPlayArea
                         anchors.fill: parent
@@ -340,7 +358,7 @@ Item {
                 }
 
                 Text {
-                    text: ""
+                    text: "󰒭"
                     color: (root.active && root.player.canGoNext) ? (popupNextArea.containsMouse ? Theme.text : Theme.textDim) : Theme.textFaint
                     font.family: Theme.iconFont
                     font.pixelSize: 16

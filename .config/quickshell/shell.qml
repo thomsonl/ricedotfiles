@@ -7,6 +7,8 @@ ShellRoot {
     PanelWindow {
         id: bar
 
+        screen: Quickshell.screens.find(s => s.name === "DP-1") ?? Quickshell.screens[0]
+
         anchors {
             top: true
             left: true
@@ -102,44 +104,62 @@ ShellRoot {
             }
         }
 
-        // Right cluster: tray | notifications | bluetooth | network | volume | power
-        Rectangle {
+        // Right cluster: a stats bubble, then tray | notifications | bluetooth | network | volume | power
+        Row {
             anchors.right: parent.right
             anchors.rightMargin: 8
             anchors.verticalCenter: parent.verticalCenter
-            radius: 8
-            color: "#1affffff"
-            implicitHeight: 26
-            implicitWidth: rightRow.implicitWidth + 12
+            spacing: 6
 
-            Row {
-                id: rightRow
-                anchors.centerIn: parent
-                spacing: 2
+            Rectangle {
+                anchors.verticalCenter: parent.verticalCenter
+                radius: 8
+                color: "#1affffff"
+                implicitHeight: 26
+                implicitWidth: statsModule.implicitWidth + 12
 
-                TrayModule {
-                    anchors.verticalCenter: parent.verticalCenter
-                    barWindow: bar
+                SystemStatsModule {
+                    id: statsModule
+                    anchors.centerIn: parent
                 }
+            }
 
-                NotificationModule {
-                    anchors.verticalCenter: parent.verticalCenter
-                }
+            Rectangle {
+                anchors.verticalCenter: parent.verticalCenter
+                radius: 8
+                color: "#1affffff"
+                implicitHeight: 26
+                implicitWidth: rightRow.implicitWidth + 12
 
-                BluetoothModule {
-                    anchors.verticalCenter: parent.verticalCenter
-                }
+                Row {
+                    id: rightRow
+                    anchors.centerIn: parent
+                    spacing: 2
 
-                NetworkModule {
-                    anchors.verticalCenter: parent.verticalCenter
-                }
+                    TrayModule {
+                        anchors.verticalCenter: parent.verticalCenter
+                        barWindow: bar
+                    }
 
-                VolumeModule {
-                    anchors.verticalCenter: parent.verticalCenter
-                }
+                    NotificationModule {
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
 
-                PowerModule {
-                    anchors.verticalCenter: parent.verticalCenter
+                    BluetoothModule {
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    NetworkModule {
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    VolumeModule {
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    PowerModule {
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
                 }
             }
         }

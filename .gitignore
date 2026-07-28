@@ -1,0 +1,7 @@
+# OS/editor cruft
+*.swp
+.DS_Store
+
+# Never track secrets even if a future copy step grabs them
+*gcalclirc*
+*credentials*.json

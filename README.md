@@ -15,6 +15,11 @@ My Arch Linux + Hyprland rice, hand-built rather than installer-generated.
 - `.config/kitty/`, `.config/btop/`, `.config/gtk-3.0/`, `.config/gtk-4.0/`,
   `.config/fastfetch/` — supporting app configs.
 - `.bashrc`, `.bash_profile`, `.gitconfig` — shell/git setup.
+- `.config/wallpapers/` — every wallpaper actually used: `archimg-dark/` (the
+  150-image DP-1 rotation pool, sourced from archimg.cc and filtered by
+  top-crop brightness so bar text stays legible), plus the `catppuccin`,
+  `transparent`, and `ultradark` theme sets referenced by
+  `hypr/themes/hyprpaper/*/hyprpaper.conf`.
 
 ## Notes
 

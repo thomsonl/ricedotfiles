@@ -72,7 +72,13 @@ Item {
     BarPopup {
         id: panel
         cardWidth: 340
-        cardHeight: 44 + Math.min(Math.max(NotificationService.count, 1), 6) * 74
+        // Grows with the notifications' actual measured height (cards vary --
+        // body text wraps, actions add a row) instead of assuming a fixed
+        // per-row height, up to 80% of the screen height -- past that the
+        // list scrolls (SnapList) rather than the popup growing further.
+        // 55 is the chrome around the list: header (22) + divider (1) +
+        // holder margins (20) + two 6px column gaps.
+        cardHeight: Math.max(118, Math.min(notifList.contentHeight + 55, panel.height * 0.8))
 
         Column {
             width: parent.width
@@ -171,21 +177,38 @@ Item {
                 font.pixelSize: 11
             }
 
-            ListView {
+            Item {
                 width: parent.width
-                height: panel.cardHeight - 64
+                height: panel.cardHeight - 55
                 visible: NotificationService.count > 0
-                clip: true
-                spacing: 2
-                model: NotificationService.list
-                boundsBehavior: Flickable.StopAtBounds
 
-                delegate: NotificationCard {
-                    required property var modelData
+                SnapList {
+                    id: notifList
+                    width: parent.width - 6
+                    height: parent.height
+                    rowHeight: 76
+                    spacing: 2
+                    source: NotificationService.list
 
-                    width: ListView.view.width
-                    notification: modelData
-                    onDismissed: modelData.dismiss()
+                    delegate: NotificationCard {
+                        required property var modelData
+
+                        width: ListView.view.width
+                        notification: modelData
+                        onDismissed: modelData.dismiss()
+                    }
+                }
+
+                // Slim scroll indicator; only shows once the list is taller than
+                // its viewport.
+                Rectangle {
+                    visible: notifList.contentHeight > notifList.height
+                    anchors.right: parent.right
+                    y: notifList.visibleArea.yPosition * notifList.height
+                    width: 3
+                    height: Math.max(16, notifList.visibleArea.heightRatio * notifList.height)
+                    radius: 1.5
+                    color: Theme.textFaint
                 }
             }
         }

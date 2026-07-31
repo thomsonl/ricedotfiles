@@ -64,7 +64,7 @@ hl.on("hyprland.start", function ()
     hl.exec_cmd("hyprpaper")
     hl.exec_cmd("~/.config/hypr/scripts/rotate-wallpaper-dp1.sh")
     hl.exec_cmd("~/.config/hypr/scripts/set-wallpaper-dp2.sh")
-    hl.exec_cmd("hypridle")
+    -- hypridle/hyprlock removed: no AFK lock screen wanted.
     -- swaync replaced by quickshell's own notification server (see
     -- NotificationService.qml). Only one process can own the
     -- org.freedesktop.Notifications bus name, so this must stay off.
@@ -365,8 +365,9 @@ hl.config({
   },
 })
 
--- "cursor" opens the overview on the monitor under the pointer, "all" on both.
-hl.bind(mainMod .. " + TAB",         function() hl.plugin.hyprtasking.toggle("cursor") end)
+-- "all" opens the overview on both monitors as one combined session, so
+-- selecting a workspace on either monitor closes it on both together.
+hl.bind(mainMod .. " + TAB",         function() hl.plugin.hyprtasking.toggle("all") end)
 hl.bind(mainMod .. " + SHIFT + TAB", function() hl.plugin.hyprtasking.toggle("all") end)
 hl.bind(mainMod .. " + X",           function() hl.plugin.hyprtasking.killhovered() end)
 

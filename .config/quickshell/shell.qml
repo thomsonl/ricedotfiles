@@ -116,6 +116,19 @@ ShellRoot {
                 radius: 8
                 color: "#1affffff"
                 implicitHeight: 26
+                implicitWidth: downloadSpeedModule.implicitWidth + 12
+
+                DownloadSpeedModule {
+                    id: downloadSpeedModule
+                    anchors.centerIn: parent
+                }
+            }
+
+            Rectangle {
+                anchors.verticalCenter: parent.verticalCenter
+                radius: 8
+                color: "#1affffff"
+                implicitHeight: 26
                 implicitWidth: statsModule.implicitWidth + 12
 
                 SystemStatsModule {

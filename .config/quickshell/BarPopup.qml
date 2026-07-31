@@ -41,8 +41,8 @@ PanelWindow {
 
     default property alias content: holder.data
 
-    function open() { visible = true }
-    function close() { visible = false }
+    function open() { PopupManager.requestOpen(popup); visible = true }
+    function close() { visible = false; PopupManager.notifyClosed(popup) }
     function toggle() { visible ? close() : open() }
 
     // hoverEnabled gives correct cursor-shape feedback (arrow vs pointer) on

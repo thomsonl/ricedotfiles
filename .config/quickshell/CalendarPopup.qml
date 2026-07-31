@@ -63,6 +63,7 @@ PanelWindow {
     }
 
     function open() {
+        PopupManager.requestOpen(popup)
         var now = new Date()
         today = now
         monthCursor = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -73,6 +74,7 @@ PanelWindow {
 
     function close() {
         visible = false
+        PopupManager.notifyClosed(popup)
     }
 
     // Pulls a 13-month window centred on monthCursor. Called on open, and again
@@ -140,7 +142,9 @@ PanelWindow {
     Rectangle {
         id: card
         width: 580
-        height: 320
+        // Sized off the calendar column's actual content instead of a fixed
+        // guess, so there's no leftover blank space below the day grid.
+        height: leftColumn.implicitHeight + 24
         anchors.top: parent.top
         // The overlay layer already starts below the bar's exclusive zone, so
         // adding barHeight here would double-count it.
@@ -163,10 +167,10 @@ PanelWindow {
 
             // LEFT: month grid
             ColumnLayout {
+                id: leftColumn
                 Layout.preferredWidth: 300
                 Layout.minimumWidth: 300
                 Layout.maximumWidth: 300
-                Layout.fillHeight: true
                 spacing: 4
 
                 // Month header
@@ -201,6 +205,7 @@ PanelWindow {
                 // Weekday header
                 RowLayout {
                     Layout.fillWidth: true
+                    Layout.topMargin: 4
                     spacing: 0
                     Repeater {
                         model: ["S", "M", "T", "W", "T", "F", "S"]
@@ -273,8 +278,6 @@ PanelWindow {
                         }
                     }
                 }
-
-                Item { Layout.fillHeight: true }
             }
 
             // Divider

@@ -47,7 +47,18 @@ Item {
             if (a.connected !== b.connected) return a.connected ? -1 : 1
             return b.signalStrength - a.signalStrength
         })
-        return nets
+        // Dual-band routers and mesh nodes broadcast the same SSID as
+        // separate access points. Collapse to one row per name, keeping
+        // the strongest/connected one since that's how the list above is
+        // already sorted.
+        var seen = {}
+        var deduped = []
+        for (var i = 0; i < nets.length; i++) {
+            if (seen[nets[i].name]) continue
+            seen[nets[i].name] = true
+            deduped.push(nets[i])
+        }
+        return deduped
     }
 
     implicitWidth: content.implicitWidth + 14
@@ -189,71 +200,92 @@ Item {
                 verticalAlignment: Text.AlignVCenter
             }
 
-            Repeater {
-                model: root.wifiNetworks.slice(0, 6)
+            Item {
+                width: parent.width
+                height: Math.max(1, Math.min(root.wifiNetworks.length, 6)) * 34
 
-                delegate: Rectangle {
-                    required property var modelData
+                SnapList {
+                    id: wifiList
+                    anchors.fill: parent
+                    rowHeight: 34
+                    source: root.wifiNetworks
 
-                    width: parent.width
-                    height: 34
-                    radius: 6
-                    color: netMouse.containsMouse ? Theme.hover : "transparent"
+                    delegate: Rectangle {
+                        required property var modelData
 
-                    Row {
-                        anchors.left: parent.left
-                        anchors.leftMargin: 6
-                        anchors.verticalCenter: parent.verticalCenter
-                        spacing: 8
+                        width: ListView.view.width
+                        height: 34
+                        radius: 6
+                        color: netMouse.containsMouse ? Theme.hover : "transparent"
 
-                        Text {
+                        Row {
+                            anchors.left: parent.left
+                            anchors.leftMargin: 6
                             anchors.verticalCenter: parent.verticalCenter
-                            text: root.signalGlyph(modelData.signalStrength)
-                            color: modelData.connected ? Theme.accent : Theme.textDim
-                            font.family: Theme.iconFont
-                            font.pixelSize: 13
+                            spacing: 8
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: root.signalGlyph(modelData.signalStrength)
+                                color: modelData.connected ? Theme.accent : Theme.textDim
+                                font.family: Theme.iconFont
+                                font.pixelSize: 13
+                            }
+
+                            Column {
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 0
+
+                                Text {
+                                    text: modelData.name
+                                    color: Theme.text
+                                    font.family: Theme.uiFont
+                                    font.pixelSize: 12
+                                    elide: Text.ElideRight
+                                    width: 190
+                                }
+                                Text {
+                                    visible: modelData.connected || modelData.known
+                                    text: modelData.connected ? "Connected" : "Saved"
+                                    color: Theme.textDim
+                                    font.family: Theme.uiFont
+                                    font.pixelSize: 10
+                                }
+                            }
                         }
 
-                        Column {
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: 0
-
-                            Text {
-                                text: modelData.name
-                                color: Theme.text
-                                font.family: Theme.uiFont
-                                font.pixelSize: 12
-                                elide: Text.ElideRight
-                                width: 190
-                            }
-                            Text {
-                                visible: modelData.connected || modelData.known
-                                text: modelData.connected ? "Connected" : "Saved"
-                                color: Theme.textDim
-                                font.family: Theme.uiFont
-                                font.pixelSize: 10
+                        MouseArea {
+                            id: netMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                if (modelData.connected) {
+                                    modelData.disconnect()
+                                } else if (modelData.known) {
+                                    modelData.connect()
+                                } else {
+                                    // New networks need a passphrase, which needs a
+                                    // text field we don't have here.
+                                    editor.running = true
+                                    panel.close()
+                                }
                             }
                         }
                     }
+                }
 
-                    MouseArea {
-                        id: netMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            if (modelData.connected) {
-                                modelData.disconnect()
-                            } else if (modelData.known) {
-                                modelData.connect()
-                            } else {
-                                // New networks need a passphrase, which needs a
-                                // text field we don't have here.
-                                editor.running = true
-                                panel.close()
-                            }
-                        }
-                    }
+                // Slim scroll indicator; only shows once the list is taller than
+                // its viewport.
+                Rectangle {
+                    visible: wifiList.contentHeight > wifiList.height
+                    anchors.right: parent.right
+                    anchors.rightMargin: 1
+                    y: wifiList.visibleArea.yPosition * wifiList.height
+                    width: 3
+                    height: Math.max(16, wifiList.visibleArea.heightRatio * wifiList.height)
+                    radius: 1.5
+                    color: Theme.textFaint
                 }
             }
         }

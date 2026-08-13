@@ -1,0 +1,15 @@
+# Kitty startup session: launched once when the Hyprland session starts.
+# Tab 1: yazi file manager
+launch yazi
+
+# Tab 2: btop
+new_tab
+launch btop
+
+# Tab 3: Claude Code
+new_tab
+launch claude
+
+# Tab 4: plain fish shell
+new_tab
+launch

@@ -71,6 +71,8 @@ hl.on("hyprland.start", function ()
     hl.exec_cmd("wl-paste --watch cliphist store")
     hl.exec_cmd("/usr/lib/polkit-kde-authentication-agent-1")
     hl.exec_cmd("solaar --window=hide")
+    -- First terminal of the session: pre-open with yazi + claude tabs.
+    hl.exec_cmd("kitty --session ~/.config/kitty/startup.session")
 end)
 
 -------------------------------
@@ -269,7 +271,8 @@ hl.config({
         kb_options = "",
         kb_rules   = "",
 
-        follow_mouse = 1,
+        follow_mouse = 2, -- 2 = cursor/scroll focus follows hover (scroll a window without
+                          -- stealing keyboard focus), but click still moves keyboard focus to it
 
         sensitivity = 0, -- -1.0 - 1.0, 0 means no modification.
         accel_profile = "flat", -- disables mouse acceleration (1:1 movement)
@@ -318,11 +321,47 @@ hl.bind(mainMod .. " + right", hl.dsp.focus({ direction = "right" }))
 hl.bind(mainMod .. " + up",    hl.dsp.focus({ direction = "up" }))
 hl.bind(mainMod .. " + down",  hl.dsp.focus({ direction = "down" }))
 
--- Move tiles with mainMod + SHIFT + arrow keys
+-- Swap tiles with mainMod + SHIFT + arrow keys
 hl.bind(mainMod .. " + SHIFT + left",  hl.dsp.window.swap({ direction = "left" }))
 hl.bind(mainMod .. " + SHIFT + right", hl.dsp.window.swap({ direction = "right" }))
 hl.bind(mainMod .. " + SHIFT + up",    hl.dsp.window.swap({ direction = "up" }))
 hl.bind(mainMod .. " + SHIFT + down",  hl.dsp.window.swap({ direction = "down" }))
+
+-- Move windows (crosses monitors at the screen edge) with mainMod + CTRL + arrow keys.
+-- If the move is a no-op (already at the edge: no sibling to displace and no monitor
+-- further that way), fall back to "movetoroot" so the window grows to take up half the
+-- monitor instead, pushing whatever else occupied that half out of the way.
+local function geom_key(win)
+    local ok, at, size = pcall(function() return win.at, win.size end)
+    if not ok then return nil end
+    local function fmt(v)
+        if type(v) == "table" then
+            return tostring(v.x or v[1]) .. "," .. tostring(v.y or v[2])
+        end
+        return tostring(v)
+    end
+    return fmt(at) .. "|" .. fmt(size)
+end
+
+local function move_or_grow(direction)
+    return function()
+        local win = hl.get_active_window()
+        if not win then return end
+        local before = geom_key(win)
+
+        hl.dispatch(hl.dsp.window.move({ direction = direction }))
+
+        local win2 = hl.get_active_window()
+        if win2 and win2.address == win.address and geom_key(win2) == before then
+            hl.dispatch(hl.dsp.layout("movetoroot"))
+        end
+    end
+end
+
+hl.bind(mainMod .. " + CTRL + left",  move_or_grow("left"))
+hl.bind(mainMod .. " + CTRL + right", move_or_grow("right"))
+hl.bind(mainMod .. " + CTRL + up",    move_or_grow("up"))
+hl.bind(mainMod .. " + CTRL + down",  move_or_grow("down"))
 
 -- Switch workspaces with mainMod + [0-9]
 -- Move active window to a workspace with mainMod + SHIFT + [0-9]
@@ -408,6 +447,9 @@ hl.bind("XF86MonBrightnessDown",hl.dsp.exec_cmd("brightnessctl -e4 -n2 set 5%-")
 hl.bind("XF86AudioNext",  hl.dsp.exec_cmd("playerctl next"),       { locked = true })
 hl.bind("XF86AudioPause", hl.dsp.exec_cmd("playerctl play-pause"), { locked = true })
 hl.bind("XF86AudioPlay",  hl.dsp.exec_cmd("playerctl play-pause"), { locked = true })
+
+-- Screenshot: region select -> clipboard (requires grimblast)
+hl.bind("Print", hl.dsp.exec_cmd("grimblast copy area"))
 hl.bind("XF86AudioPrev",  hl.dsp.exec_cmd("playerctl previous"),   { locked = true })
 
 

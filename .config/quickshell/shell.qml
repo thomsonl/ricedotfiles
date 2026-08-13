@@ -26,9 +26,36 @@ ShellRoot {
             id: centerPill
             anchors.centerIn: parent
             radius: 8
-            color: clockArea.containsMouse ? "#26ffffff" : "#1affffff"
+            // Tracked explicitly rather than reading clockArea.containsMouse
+            // directly, and OR'd with the popup's own visible -- otherwise the
+            // highlight flickers, since the popup's overlay steals pointer
+            // focus from this surface the instant it opens. See
+            // SystemStatsModule.qml's `hovered` property for the full story.
+            property bool hovered: false
+            // Closing via a click on this same pill still flickers without this:
+            // the *off* transition is debounced (never the *on* one) so the beat
+            // between the overlay's close() and hover handing back to clockArea
+            // doesn't render as a visible blink. See SystemStatsModule.qml's
+            // matching `highlightOn`/`wantHighlight` pair for the full story.
+            readonly property bool wantHighlight: hovered || calendarPopup.visible
+            property bool highlightOn: false
+            onWantHighlightChanged: {
+                if (wantHighlight) {
+                    highlightOffTimer.stop()
+                    highlightOn = true
+                } else {
+                    highlightOffTimer.restart()
+                }
+            }
+            color: highlightOn ? "#26ffffff" : "#1affffff"
             implicitHeight: 26
             implicitWidth: clockText.implicitWidth + 24
+
+            Timer {
+                id: highlightOffTimer
+                interval: 80
+                onTriggered: centerPill.highlightOn = false
+            }
 
             Text {
                 id: clockText
@@ -44,11 +71,13 @@ ShellRoot {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
+                onEntered: centerPill.hovered = true
+                onExited: centerPill.hovered = false
                 onClicked: calendarPopup.toggle()
             }
         }
 
-        // Left cluster: separate bubbles for each monitor's workspaces, then media
+        // Left cluster: separate bubbles for each monitor's workspaces, then weather, then media
         Row {
             anchors.left: parent.left
             anchors.leftMargin: 8
@@ -82,6 +111,19 @@ ShellRoot {
                     anchors.centerIn: parent
                     workspaceIds: [4, 5, 6]
                     labelOffset: 3
+                }
+            }
+
+            Rectangle {
+                anchors.verticalCenter: parent.verticalCenter
+                radius: 8
+                color: "#1affffff"
+                implicitHeight: 26
+                implicitWidth: weatherModule.implicitWidth + 12
+
+                WeatherModule {
+                    id: weatherModule
+                    anchors.centerIn: parent
                 }
             }
 

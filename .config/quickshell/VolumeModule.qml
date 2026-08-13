@@ -11,6 +11,25 @@ Item {
     readonly property real volume: audio ? audio.volume : 0
     readonly property bool muted: audio ? audio.muted : false
 
+    // Real output devices only -- excludes sink-input streams (individual
+    // apps' playback streams show up in Pipewire.nodes too).
+    readonly property var outputSinks: {
+        var out = []
+        var all = Pipewire.nodes.values
+        for (var i = 0; i < all.length; i++) {
+            var n = all[i]
+            if (n.isSink && !n.isStream) out.push(n)
+        }
+        return out
+    }
+
+    function cycleSink() {
+        var nodes = root.outputSinks
+        if (nodes.length < 2) return
+        var idx = nodes.indexOf(root.sink)
+        Pipewire.preferredDefaultAudioSink = nodes[(idx + 1) % nodes.length]
+    }
+
     implicitWidth: content.implicitWidth + 14
     implicitHeight: 26
 
@@ -66,11 +85,13 @@ Item {
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
 
         onClicked: function(ev) {
-            if (ev.button === Qt.RightButton) {
+            if (ev.button === Qt.LeftButton) {
                 mixer.running = true
+            } else if (ev.button === Qt.MiddleButton) {
+                root.cycleSink()
             } else if (root.audio) {
                 root.audio.muted = !root.audio.muted
             }

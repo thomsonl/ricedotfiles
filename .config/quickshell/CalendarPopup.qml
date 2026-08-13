@@ -11,6 +11,11 @@ PanelWindow {
     color: "transparent"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+    // Without this, the full-screen click-catcher below gets auto-pushed below
+    // the bar's exclusive zone (confirmed via `hyprctl layers`: it only spanned
+    // y=34..1080), so clicking the bar itself -- including the clock that opened
+    // this -- never reached it. Matches the fix applied to BarPopup.qml.
+    exclusionMode: ExclusionMode.Ignore
 
     anchors {
         top: true
@@ -129,14 +134,45 @@ PanelWindow {
     }
 
     // Full-screen click-catcher: click anywhere outside the card closes the popup.
+    // Pointing-hand cursor since, once open, this is what's actually under the
+    // pointer everywhere -- including back over the clock that opened it.
     MouseArea {
         anchors.fill: parent
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
         onClicked: popup.close()
     }
 
     Item {
         focus: true
         Keys.onEscapePressed: popup.close()
+    }
+
+    // This window only ever renders on the bar's own screen (DP-1), so a click
+    // on any other monitor never reaches a quickshell surface at all and the
+    // popup stays open until you click back on DP-1 or hit Escape. Give every
+    // other screen its own invisible click-catcher, card-free, that just closes
+    // this popup. See BarPopup.qml, which has the identical fix.
+    Variants {
+        model: Quickshell.screens.filter(s => s.name !== "DP-1")
+
+        PanelWindow {
+            required property var modelData
+            screen: modelData
+
+            visible: popup.visible
+            color: "transparent"
+            WlrLayershell.layer: WlrLayer.Overlay
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+            exclusionMode: ExclusionMode.Ignore
+
+            anchors { top: true; bottom: true; left: true; right: true }
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: popup.close()
+            }
+        }
     }
 
     Rectangle {
@@ -146,9 +182,9 @@ PanelWindow {
         // guess, so there's no leftover blank space below the day grid.
         height: leftColumn.implicitHeight + 24
         anchors.top: parent.top
-        // The overlay layer already starts below the bar's exclusive zone, so
-        // adding barHeight here would double-count it.
-        anchors.topMargin: 6
+        // Now that exclusionMode: Ignore stops the overlay layer from being
+        // auto-pushed below the bar, the card has to clear it by hand.
+        anchors.topMargin: barHeight + 6
         anchors.horizontalCenter: parent.horizontalCenter
         radius: 8
         color: "#f21e1e2e"

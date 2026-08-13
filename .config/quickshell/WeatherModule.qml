@@ -1,19 +1,39 @@
 import QtQuick
 import Quickshell.Io
 
-// Current weather for [redacted] -- lat/long fixed by request
-// rather than IP-geolocated, so it doesn't wobble on VPN/travel and needs no
-// extra lookup on startup. Backed by Open-Meteo (free, no API key, no signup)
-// fetched via curl rather than QML's XMLHttpRequest, matching how
-// CalendarPopup already shells out to gcalcli for its own data.
+// Current weather, fixed lat/long rather than IP-geolocated, so it doesn't
+// wobble on VPN/travel and needs no extra lookup on startup. Backed by
+// Open-Meteo (free, no API key, no signup) fetched via curl rather than
+// QML's XMLHttpRequest, matching how CalendarPopup already shells out to
+// gcalcli for its own data.
+//
+// Coordinates are private, so they live in weather.local.conf (gitignored,
+// not in the public repo) instead of hardcoded here -- two lines, latitude
+// then longitude. Falls back to Manhattan's midpoint if that file is
+// missing, e.g. on a fresh clone of the public dotfiles.
 Row {
     id: root
 
     spacing: 5
     height: 26
 
-    readonly property real latitude: 0.0
-    readonly property real longitude: 0.0
+    FileView { id: coordsFile; path: "/home/thomson/.config/quickshell/weather.local.conf" }
+
+    // Guards against the file being briefly unloaded, missing entirely (e.g. a
+    // fresh clone of the public dotfiles), or malformed -- any of those fall
+    // back to Manhattan's midpoint rather than erroring out the whole module.
+    function _parsedCoord(index, fallback) {
+        try {
+            const lines = coordsFile.text().trim().split("\n")
+            if (lines.length !== 2) return fallback
+            const value = parseFloat(lines[index])
+            return isNaN(value) ? fallback : value
+        } catch (e) {
+            return fallback
+        }
+    }
+    readonly property real latitude: _parsedCoord(0, 40.7831)
+    readonly property real longitude: _parsedCoord(1, -73.9712)
 
     property string glyph: ""
     property string tempF: ""

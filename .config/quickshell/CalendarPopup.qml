@@ -42,6 +42,14 @@ PanelWindow {
         return Qt.formatDate(d, "yyyy-MM-dd")
     }
 
+    // Parses gcalcli's "yyyy-MM-dd" columns into a local-midnight Date.
+    // Doing this by hand (rather than `new Date(string)`) avoids the
+    // built-in parser treating it as UTC and landing on the wrong local day.
+    function parseYMD(s) {
+        var parts = s.split("-")
+        return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10))
+    }
+
     function sameDay(a, b) {
         return a.getFullYear() === b.getFullYear()
             && a.getMonth() === b.getMonth()
@@ -120,20 +128,39 @@ PanelWindow {
                 if (line.length === 0 || line.indexOf("id\t") === 0) continue
                 var cols = line.split("\t")
                 if (cols.length < 10) continue
-                var startDate = cols[1]
+                var startDateStr = cols[1]
                 var startTime = cols[2]
+                var endDateStr = cols[3]
                 var endTime = cols[4]
                 var title = cols[9]
                 var location = cols[10]
-                if (!startDate) continue
-                if (!map[startDate]) map[startDate] = []
-                map[startDate].push({
+                if (!startDateStr) continue
+                var isAllDay = startTime.length === 0
+                var event = {
                     title: title,
                     startTime: startTime,
                     endTime: endTime,
-                    allDay: startTime.length === 0,
+                    allDay: isAllDay,
                     location: location
-                })
+                }
+
+                // Enter the event under every date it spans, not just its
+                // start date, or it vanishes from the grid dot/agenda on
+                // every day but the first. All-day events use gcalcli's
+                // (Google's) exclusive end_date -- a single-day all-day
+                // event's end_date is the day *after* -- while timed events
+                // use an inclusive one (the actual date the end time falls
+                // on). Capped at a year of days as a sanity backstop against
+                // malformed rows; a real event should never hit it.
+                var day = parseYMD(startDateStr)
+                var endDay = endDateStr ? parseYMD(endDateStr) : day
+                for (var guard = 0; guard < 366; guard++) {
+                    if (isAllDay ? !(day < endDay) : !(day <= endDay)) break
+                    var key = dateKey(day)
+                    if (!map[key]) map[key] = []
+                    map[key].push(event)
+                    day = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1)
+                }
             }
             eventsByDate = map
             fetchedStart = pendingStart

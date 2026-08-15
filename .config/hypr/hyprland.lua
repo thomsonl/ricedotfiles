@@ -365,11 +365,23 @@ hl.bind(mainMod .. " + CTRL + down",  move_or_grow("down"))
 
 -- Switch workspaces with mainMod + [0-9]
 -- Move active window to a workspace with mainMod + SHIFT + [0-9]
+-- Workspaces 4-6 are excluded: mainMod + [SHIFT +] 4/5/6 do nothing, since
+-- those workspaces are reached via mainMod + SHIFT + 1/2/3 instead (below).
 for i = 1, 10 do
     local key = i % 10 -- 10 maps to key 0
-    hl.bind(mainMod .. " + " .. key,             hl.dsp.focus({ workspace = i}))
-    hl.bind(mainMod .. " + SHIFT + " .. key,     hl.dsp.window.move({ workspace = i }))
+    if i < 4 or i > 6 then
+        hl.bind(mainMod .. " + " .. key, hl.dsp.focus({ workspace = i }))
+        if i > 3 then
+            hl.bind(mainMod .. " + SHIFT + " .. key, hl.dsp.window.move({ workspace = i }))
+        end
+    end
 end
+
+-- Workspaces 4-6 live on the second monitor (DP-2); mainMod + SHIFT + 1/2/3
+-- jumps straight to them instead of moving a window to workspace 1/2/3.
+hl.bind(mainMod .. " + SHIFT + 1", hl.dsp.focus({ workspace = 4 }))
+hl.bind(mainMod .. " + SHIFT + 2", hl.dsp.focus({ workspace = 5 }))
+hl.bind(mainMod .. " + SHIFT + 3", hl.dsp.focus({ workspace = 6 }))
 
 -- Example special workspace (scratchpad)
 hl.bind(mainMod .. " + S",         hl.dsp.workspace.toggle_special("magic"))

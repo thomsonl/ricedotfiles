@@ -18,6 +18,11 @@ function y() {
 	fi
 	rm -f -- "$tmp"
 }
+
+# Launch firstmate from anywhere without changing the current directory
+function firstmate() {
+	(cd ~/Repositories/firstmate && claude "$@")
+}
 export PATH="$HOME/.local/bin:$HOME/.config/scripts:$PATH"
 
 # pnpm

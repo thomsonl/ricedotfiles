@@ -100,37 +100,45 @@ PanelWindow {
 
     Process {
         id: gcalProc
-        stdout: StdioCollector {
-            onStreamFinished: {
-                var map = {}
-                var lines = text.split("\n")
-                for (var i = 0; i < lines.length; i++) {
-                    var line = lines[i]
-                    if (line.length === 0 || line.indexOf("id\t") === 0) continue
-                    var cols = line.split("\t")
-                    if (cols.length < 10) continue
-                    var startDate = cols[1]
-                    var startTime = cols[2]
-                    var endTime = cols[4]
-                    var title = cols[9]
-                    var location = cols[10]
-                    if (!startDate) continue
-                    if (!map[startDate]) map[startDate] = []
-                    map[startDate].push({
-                        title: title,
-                        startTime: startTime,
-                        endTime: endTime,
-                        allDay: startTime.length === 0,
-                        location: location
-                    })
-                }
-                eventsByDate = map
-                fetchedStart = pendingStart
-                fetchedEnd = pendingEnd
-                loading = false
+        stdout: StdioCollector { id: gcalStdout }
+        // gcalcli failures (e.g. an expired/revoked OAuth token) print their
+        // traceback to stderr and exit non-zero, leaving stdout empty. That
+        // used to still get parsed into an empty-but-"successfully fetched"
+        // map below, which then blocked the next refresh() until navigation
+        // moved off the cached window -- a real fetch failure looked
+        // identical to "this month genuinely has no events." Gating on
+        // exitCode leaves a failed run unfetched so it's retried on the next
+        // open()/navigation instead of caching in the empty result.
+        onExited: (exitCode, exitStatus) => {
+            loading = false
+            if (exitCode !== 0) return
+
+            var map = {}
+            var lines = gcalStdout.text.split("\n")
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i]
+                if (line.length === 0 || line.indexOf("id\t") === 0) continue
+                var cols = line.split("\t")
+                if (cols.length < 10) continue
+                var startDate = cols[1]
+                var startTime = cols[2]
+                var endTime = cols[4]
+                var title = cols[9]
+                var location = cols[10]
+                if (!startDate) continue
+                if (!map[startDate]) map[startDate] = []
+                map[startDate].push({
+                    title: title,
+                    startTime: startTime,
+                    endTime: endTime,
+                    allDay: startTime.length === 0,
+                    location: location
+                })
             }
+            eventsByDate = map
+            fetchedStart = pendingStart
+            fetchedEnd = pendingEnd
         }
-        onExited: loading = false
     }
 
     // Full-screen click-catcher: click anywhere outside the card closes the popup.
